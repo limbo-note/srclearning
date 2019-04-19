@@ -3,6 +3,7 @@ package selfmade.my.springv1.mvc.servlet;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,6 +18,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import selfmade.my.springv1.annotation.MyAutoWired;
 import selfmade.my.springv1.annotation.MyController;
 import selfmade.my.springv1.annotation.MyDao;
 import selfmade.my.springv1.annotation.MyService;
@@ -25,20 +27,19 @@ public class MyDispatcherServlet extends HttpServlet {
 
 	private Properties properties;
 	private Set<String> classNameList = new HashSet<String>();
-	private HashMap<String, Class<?>> iocMap = new HashMap<String, Class<?>>();
+	private HashMap<String, Object> iocMap = new HashMap<String, Object>();
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
-		// TODO Auto-generated method stub
-		super.doGet(req, resp);
+
+		doPost(req, resp);
 	}
 
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp)
 			throws ServletException, IOException {
-		// TODO Auto-generated method stub
-		super.doPost(req, resp);
+
 	}
 
 	@Override
@@ -60,7 +61,33 @@ public class MyDispatcherServlet extends HttpServlet {
 	}
 
 	private void doAutoWired() {
-		// TODO Auto-generated method stub
+
+		for (String className : classNameList) {
+			Class clazz;
+			try {
+				clazz = Class.forName(className);
+
+				for (Field field : clazz.getFields()) {
+					if (field.isAnnotationPresent(MyAutoWired.class)) {
+						String keyName = field.getType().getSimpleName()
+								.toLowerCase();
+						if (!iocMap.containsKey(keyName))
+							throw new Exception(
+									"field "
+											+ field.getName()
+											+ "in class "
+											+ clazz.getSimpleName()
+											+ " can not be autowired, class not registered.");
+						field.setAccessible(true);
+						field.set(obj, iocMap.get(keyName));
+
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+		}
 
 	}
 
@@ -69,18 +96,18 @@ public class MyDispatcherServlet extends HttpServlet {
 		for (String className : classNameList) {
 			try {
 				Class clazz = Class.forName(className);
-				if (clazz.isAnnotationPresent(MyController.class)) {
+				String keyName;
+				if (clazz.isAnnotationPresent(MyController.class)
+						|| clazz.isAnnotationPresent(MyService.class)
+						|| clazz.isAnnotationPresent(MyDao.class)) {
+					iocMap.put(clazz.getSimpleName().toLowerCase(),
+							clazz.newInstance());
 
-				} else {
-					if (clazz.isAnnotationPresent(MyService.class)) {
-
-					} else if (clazz.isAnnotationPresent(MyDao.class)) {
-
-					}
+					for (Class c : clazz.getInterfaces())
+						iocMap.put(c.getSimpleName().toLowerCase(),
+								clazz.newInstance());
 				}
-
 			} catch (Exception e) {
-
 				e.printStackTrace();
 			}
 
@@ -106,6 +133,7 @@ public class MyDispatcherServlet extends HttpServlet {
 		}
 
 	}
+
 	private void doLoadConfig(ServletConfig servletConfig) {
 
 		InputStream in;
