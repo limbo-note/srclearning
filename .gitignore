@@ -7,4 +7,6 @@
 *.idea*
 *.log
 *.jar
-*target*
+*\target*
+*\out*
+*\webapp*
