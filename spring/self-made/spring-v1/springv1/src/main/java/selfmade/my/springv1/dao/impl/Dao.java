@@ -9,7 +9,7 @@ public class Dao implements IDao {
 	@Override
 	public String getName(String name) {
 
-		return name;
+		return "2";
 	}
 
 }
